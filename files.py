@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def open11bit(name, days, input_size):
@@ -248,7 +247,7 @@ def open_stock_with_integral(name, days, input_size, integral_length, future_day
         try:
             volumes[d] = float(volumes[d].replace(",", "."))
         except Exception as e:
-            volumes[d] = 0
+            volumes[d] = 0.1
 
     open_filtered = []
     min_fitlered = []
@@ -283,7 +282,7 @@ def open_stock_with_integral(name, days, input_size, integral_length, future_day
         labels_at_timestep = []
         real_prices_at_timestep = []
 
-        for ft in range(skip_future_days + 1, skip_future_days + future_days + 1):
+        for ft in range(skip_future_days + 1, skip_future_days + 0*future_days + 1 + 1):
             labels_at_day = []
             real_prices_at_day = []
             current = np.zeros(4)
@@ -305,27 +304,64 @@ def open_stock_with_integral(name, days, input_size, integral_length, future_day
             labels_at_timestep.append(labels_at_day)
             real_prices_at_timestep.append(real_prices_at_day)
 
-        real_prices.append(real_prices_at_day)
-        labels.append(labels_at_day)
+        real_prices.append(real_prices_at_timestep)
+        labels.append(labels_at_timestep)
 
-    for days in range(len(data)):
+    relative_volume_limit = 10
+    price_scale_coeficient = 5
+    label_scale_coeficient = 20
+
+    final_data = []
+
+    for days in range(0, len(data) - (future_days - 1), future_days):
         base_price = data[days][input_size - 1]
         bases.append(labels[days][-1])
         base_volume = data[days][-1]
-        for p in range(len(data[days]) - input_size):
-            data[days][p] = (data[days][p] / base_price) * 5 - 5
-        for v in range(len(data[days]) - input_size, len(data[days])):
-            relative_volume = data[days][v] / base_volume
-            data[days][v] = relative_volume - 1
-            if data[days][v] > 10:
-                data[days][v] = 10
-            if data[days][v] < 0.1:
-                data[days][v] = 0.1
-        for d in range(len(labels[days])):
-            labels[days][d] = (labels[days][d] / base_price - 1.0) * 20
+        single_day = np.zeros((future_days, 5 * input_size))
+        for ft in range(future_days):
+            for p in range(len(data[days]) - input_size):
+                single_day[ft][p] = (data[days][p] / base_price) * price_scale_coeficient - price_scale_coeficient
+            for v in range(len(data[days]) - input_size, len(data[days])):
+                relative_volume = data[days][v] / base_volume
+                single_day[ft][v] = relative_volume - 1
+                if single_day[ft][v] > relative_volume_limit:
+                    single_day[ft][v] = relative_volume_limit
+                if single_day[ft][v] < 1/relative_volume_limit:
+                    single_day[ft][v] = 1/relative_volume_limit
+        final_data.append(single_day)
 
-    data = np.array(data)
-    labels = np.array(labels)
+        # for p in range(len(data[days]) - input_size):
+        #     data[days][p] = (data[days][p] / base_price) * price_scale_coeficient - price_scale_coeficient
+        # for v in range(len(data[days]) - input_size, len(data[days])):
+        #     relative_volume = data[days][v] / base_volume
+        #     data[days][v] = relative_volume - 1
+        #     if data[days][v] > relative_volume_limit:
+        #         data[days][v] = relative_volume_limit
+        #     if data[days][v] < 1/relative_volume_limit:
+        #         data[days][v] = 1/relative_volume_limit
+
+        future = future_days
+        for ft in range(future):
+            if days + ft < len(labels):
+                d = 0
+                labels[days + ft][d][0] = (labels[days + ft][d][0] / base_price - 1.0) * label_scale_coeficient
+                if any(labels[days + ft][d][0] > 1) or any(labels[days + ft][d][0] < -1):
+                    for price in range(4):
+                        if labels[days + ft][d][0][price] > 1:
+                            labels[days + ft][d][0][price] = 1
+                        if labels[days + ft][d][0][price] < -1:
+                            labels[days + ft][d][0][price] = -1
+
+    final_labels = []
+    for day in range(0, len(labels), future_days):
+        if day + ft < len(labels):
+            single_labels = []
+            for ft in range(future_days):
+                single_labels.append(labels[day + ft])
+            final_labels.append(single_labels)
+
+    data = np.array(final_data)
+    labels = np.array(final_labels)
     real_prices = np.array(real_prices)
     bases = np.array(bases)
 

@@ -22,11 +22,8 @@ class Dataset(Dataset):
 class Model(nn.Module):
     def __init__(self, input_features, output_features):
         super(Model, self).__init__()
-        #self.cnn = nn.Conv2d(in_channels=1, out_channels=8, kernel_size=3, padding=1, stride=1)
-        #self.batchNorm1 = nn.BatchNorm2d(num_features=8)
-        #self.maxpool = nn.MaxPool2d(kernel_size=2)
         self.batchNorm1 = nn.BatchNorm1d(num_features=input_features)
-        self.fc1 = nn.Linear(input_features, 600)#input, 500
+        self.fc1 = nn.Linear(input_features, 600)
         torch.nn.init.xavier_uniform_(self.fc1.weight)
         self.batchNorm2 = nn.BatchNorm1d(num_features=600)
         self.fc15 = nn.Linear(600, 100)
@@ -40,15 +37,6 @@ class Model(nn.Module):
         self.dropout = nn.Dropout(p=0.5)
 
     def forward(self, x):
-        #x_raw = torch.clone(x)
-        #x = x.view((x.shape[0], 1, input_size, -1))
-        #out = self.cnn(x)
-        #out = self.prelu(out)
-        #out = self.batchNorm1(out)
-        #out = self.maxpool(out)
-        #out = out.view(out.shape[0], -1)
-        #out = torch.cat((out, x_raw), 1)
-        #size = out.shape
         out = self.batchNorm1(x)
         out = self.fc1(out)
         out = self.batchNorm2(out)
@@ -58,7 +46,6 @@ class Model(nn.Module):
         out = self.batchNorm15(out)
         out = self.relu(out)
         out = self.fc2(out)
-        #out = self.tanh(out)
         return out
 
 
@@ -78,9 +65,9 @@ consideration_length = []
 test_length = 400
 skip = 50
 input_size = 40
-future_days = 1
+future_days = 3
 skip_future_days = 0
-moving_average_length = 4
+integral_length = 6
 
 bit11 = "11BIT.csv"
 cl_bit = 2200
@@ -134,7 +121,7 @@ names.append(mbk)
 consideration_length.append(cl_mbk)
 
 for cl, cons_length in enumerate(consideration_length):
-    consideration_length[cl] += input_size + moving_average_length
+    consideration_length[cl] += input_size + integral_length
 
 input_data = []
 labels = []
@@ -145,7 +132,7 @@ bases = []
 
 for name, cons_length in zip(names, consideration_length):
     input_data_raw, labels_raw, bases_raw, real_prices_raw = f.open_stock_with_integral(name, cons_length, input_size,
-                                                        moving_average_length, future_days, skip_future_days, skip)
+                                                        integral_length, future_days, skip_future_days, skip)
     val_input_data.extend(input_data_raw[-test_length:])
     val_labels.extend(labels_raw[-test_length:])
     input_data.extend(input_data_raw[:-test_length])
@@ -179,7 +166,7 @@ path = "C:\\Users\\PZI004\\PycharmProjects\\untitled\\saved_nets\\" + "ma_1day"
 #net = torch.load(path)
 criterion = torch.nn.SmoothL1Loss(size_average=True)
 #optimizer = torch.optim.SGD(net.parameters(), lr=0.001, momentum=0.99)
-optimizer = torch.optim.Adam(net.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(net.parameters(), lr=0.01)
 scheduler = torch.optim.lr_scheduler.StepLR(optimizer=optimizer, step_size=1, gamma=0.95)
 
 epochs = 50
