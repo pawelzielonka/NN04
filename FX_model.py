@@ -22,9 +22,12 @@ class Model(nn.Module):
         self.create_linear(linear_hidden_size[-1], 4)
 
         self.relu = nn.LeakyReLU()
-        self.tanh = nn.Tanh()
+        self.tanh = nn.Sigmoid()
         self.dropout = nn.Dropout(p=0.4)
         self.lowdrop = nn.Dropout(p=0.1)
+
+        self.mean = 0
+        self.std = 0
 
     def forward(self, x, states):
         states_out = []
@@ -32,7 +35,7 @@ class Model(nn.Module):
         for lstm, sts in zip(self.lstm, states):
             out, states = lstm(out, sts)
             states_out.append(states)
-            out = self.lowdrop(out)
+            #out = self.lowdrop(out)
         for i, linear in enumerate(self.linear):
             out = linear(out)
             if i != len(self.linear) - 1:
@@ -41,6 +44,8 @@ class Model(nn.Module):
                 out = self.tanh(out)
             if i == 0:
                 out = self.dropout(out)
+            if i == 1:
+                out = self.lowdrop(out)
         return out, states_out
 
     def create_lstm(self, input_features, hidden_size, layers_num, bidirectional):
@@ -57,3 +62,7 @@ class Model(nn.Module):
                 torch.zeros(lstm_layers_num[i] * int(lstm_bidirectional[i].__float__() + 1), sequence_length, lstm_hidden_sizes[i]),
                 torch.zeros(lstm_layers_num[i] * int(lstm_bidirectional[i].__float__() + 1), sequence_length, lstm_hidden_sizes[i]))
                 for i in range(len(lstm_hidden_sizes))]
+
+    def add_mean_std(self, mean, std):
+        self.mean = mean
+        self.std = std
